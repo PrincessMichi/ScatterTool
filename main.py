@@ -1,11 +1,14 @@
-import logging
 import random
+import logging
+
 from PySide2 import QtWidgets, QtCore
 from shiboken2 import wrapInstance
-import maya.OpenMayaUI as omui
-import maya.cmds as cmds
+
 import pymel.core as pmc
+import maya.cmds as cmds
+import maya.OpenMayaUI as omui
 from pymel.core.system import Path
+
 
 log = logging.getLogger(__name__)
 
@@ -14,6 +17,20 @@ def maya_main_window():
     """Return the Maya main window widget"""
     main_window = omui.MQtUtil.mainWindow()
     return wrapInstance(long(main_window), QtWidgets.QWidget)
+
+
+class ScatterFX(object):
+    """"Code that executes the Scatter Effect with User Specified Inputs."""
+    def __init__(self, path=None):
+        self.density_percentage = 1
+        self.scale_max = 100
+        self.scale_min = 1
+        self.rot_x_min = 0.0
+        self.rot_y_min = 0.0
+        self.rot_z_min = 0.0
+        self.rot_x_max = 0.0
+        self.rot_y_max = 0.0
+        self.rot_z_max = 0.0
 
 
 class ScatterToolUI(QtWidgets.QDialog):
@@ -26,6 +43,9 @@ class ScatterToolUI(QtWidgets.QDialog):
         self.setMaximumHeight(300)
         self.setWindowFlags(self.windowFlags() ^
                             QtCore.Qt.WindowContextHelpButtonHint)
+
+        # FIXME: execute_scatter is a bit of a confusing name since you would expect this to do something not just
+        #        hold information. Might be best to rename to something like scatter_settings.
         self.execute_scatter = ScatterFX()
         self.create_ui()
         self.create_connections()
@@ -58,7 +78,9 @@ class ScatterToolUI(QtWidgets.QDialog):
     @QtCore.Slot()
     def _scatter(self):
         """Execute scatter effect"""
-        #self._set_scatter_properties_from_ui()
+        # FIXME: To answer your reddit question directly, You had the right idea. All you need to do is set the
+        #        settings to the object you have, then in the scatter_fx() you just pull in those settings again.
+        self._set_scatter_properties_from_ui()
         self.scatter_fx()
 
     @QtCore.Slot()
@@ -67,7 +89,20 @@ class ScatterToolUI(QtWidgets.QDialog):
         self._set_scatter_properties_from_ui()
 
     def _set_scatter_properties_from_ui(self):
-        self.execute_scatter.folder_path = self.folder_le.text()
+        # FIXME: You've got the right idea here with setting the attrs from the UI
+        #        I've just added in some logic to get and set all the other fields
+
+        # Setting these values here will ensure that they are all the same as what is present in the UI at runtime.
+        self.execute_scatter.density_percentage = self.dens_sbx.value()
+        self.execute_scatter.scale_min = self.scale_min_sbox.value()
+        self.execute_scatter.scale_max = self.scale_max_sbox.value()
+        self.execute_scatter.rot_x_min = self.rot_xmin_box.value()
+        self.execute_scatter.rot_y_min = self.rot_ymin_box.value()
+        self.execute_scatter.rot_z_min = self.rot_zmin_box.value()
+        self.execute_scatter.rot_x_max = self.rot_xmax_box.value()
+        self.execute_scatter.rot_y_max = self.rot_ymax_box.value()
+        self.execute_scatter.rot_z_max = self.rot_zmax_box.value()
+        # self.execute_scatter.folder_path = self.folder_le.text()
 
     def _create_button_ui(self):
         self.scatter_btn = QtWidgets.QPushButton("Scatter")
@@ -75,6 +110,9 @@ class ScatterToolUI(QtWidgets.QDialog):
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.scatter_btn)
         layout.addWidget(self.add_ft_btn)
+
+        # FIXME: Returning the layout here is a bit confusing as the function creates a widget.
+        #        You would expect it to return the widget it creates.
         return layout
 
     def _create_density_sbx(self):
@@ -113,12 +151,31 @@ class ScatterToolUI(QtWidgets.QDialog):
 
     def _create_rot_min_ui(self):
         layout = self._create_xyz_headers()
-        self.rot_xmin_box = QtWidgets.QLineEdit(self.execute_scatter.rot_x_min)
+
+        # FIXME: Setting all these values like this repeatedly is a bad idea. I would reccomend using
+        #        Either a helper function or subclassing the QtWidgets.QDoubleSpinBox and just setting
+        #        Everything you need in its __init__, then create those new widgets here.
+        # X
+        self.rot_xmin_box = QtWidgets.QDoubleSpinBox()
         self.rot_xmin_box.setFixedWidth(50)
-        self.rot_ymin_box = QtWidgets.QLineEdit(self.execute_scatter.rot_y_min)
+        self.rot_xmin_box.setMaximum(3600)
+        self.rot_xmin_box.setValue(self.execute_scatter.rot_x_min)
+        self.rot_xmin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+
+        # Y
+        self.rot_ymin_box = QtWidgets.QDoubleSpinBox()
         self.rot_ymin_box.setFixedWidth(50)
-        self.rot_zmin_box = QtWidgets.QLineEdit(self.execute_scatter.rot_z_min)
+        self.rot_ymin_box.setMaximum(3600)
+        self.rot_ymin_box.setValue(self.execute_scatter.rot_y_min)
+        self.rot_ymin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+
+        # Z
+        self.rot_zmin_box = QtWidgets.QDoubleSpinBox()
         self.rot_zmin_box.setFixedWidth(50)
+        self.rot_zmin_box.setMaximum(3600)
+        self.rot_zmin_box.setValue(self.execute_scatter.rot_z_min)
+        self.rot_zmin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+
         self.rot_lbl_min = QtWidgets.QLabel("Random Rotation Minimum")
         layout.addWidget(self.rot_xmin_box, 3, 0)
         layout.addWidget(self.rot_ymin_box, 3, 2)
@@ -128,12 +185,28 @@ class ScatterToolUI(QtWidgets.QDialog):
 
     def _create_rot_max_ui(self):
         layout = QtWidgets.QGridLayout()
-        self.rot_xmax_box = QtWidgets.QLineEdit(self.execute_scatter.rot_x_max)
+
+        # X
+        self.rot_xmax_box = QtWidgets.QDoubleSpinBox()
         self.rot_xmax_box.setFixedWidth(50)
-        self.rot_ymax_box = QtWidgets.QLineEdit(self.execute_scatter.rot_y_max)
+        self.rot_xmax_box.setMaximum(3600)
+        self.rot_xmax_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.rot_xmax_box.setValue(self.execute_scatter.rot_x_max)
+
+        # Y
+        self.rot_ymax_box = QtWidgets.QDoubleSpinBox()
         self.rot_ymax_box.setFixedWidth(50)
-        self.rot_zmax_box = QtWidgets.QLineEdit(self.execute_scatter.rot_z_max)
+        self.rot_ymax_box.setMaximum(3600)
+        self.rot_ymax_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.rot_ymax_box.setValue(self.execute_scatter.rot_y_max)
+
+        # Z
+        self.rot_zmax_box = QtWidgets.QDoubleSpinBox()
         self.rot_zmax_box.setFixedWidth(50)
+        self.rot_zmax_box.setMaximum(3600)
+        self.rot_zmax_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.rot_zmax_box.setValue(self.execute_scatter.rot_z_max)
+
         self.rot_lbl_max = QtWidgets.QLabel("Random Rotation Maximum")
         layout.addWidget(self.rot_xmax_box, 3, 0)
         layout.addWidget(self.rot_ymax_box, 3, 2)
@@ -170,16 +243,26 @@ class ScatterToolUI(QtWidgets.QDialog):
                 new_instance = cmds.instance(object_to_instance)[0]
                 position = cmds.pointPosition(vertex, w=1)
                 cmds.move(position[0], position[1], position[2], new_instance, a=1, ws=1)
+
+                # setting the new rotation
+                new_rotation = [random.uniform(self.execute_scatter.rot_x_min, self.execute_scatter.rot_x_max),
+                                random.uniform(self.execute_scatter.rot_y_min, self.execute_scatter.rot_y_max),
+                                random.uniform(self.execute_scatter.rot_z_min, self.execute_scatter.rot_z_max)]
+
+                cmds.rotate(new_rotation[0],
+                            new_rotation[1],
+                            new_rotation[2],
+                            new_instance,
+                            relative=True,
+                            objectSpace=True)
+
+                # Set the new scale uniformly.
+                new_uniform_scale = random.uniform(self.execute_scatter.scale_min, self.execute_scatter.scale_max)
+                cmds.scale(new_uniform_scale,
+                           new_uniform_scale,
+                           new_uniform_scale,
+                           new_instance,
+                           relative=True)
+
         else:
             print("Please ensure the first object you select is a transform")
-
-
-class ScatterFX(object):
-    """"Code that executes the Scatter Effect with User Specified Inputs."""
-    def __init__(self, path=None):
-        self.rot_x_min = '0.0'
-        self.rot_y_min = '0.0'
-        self.rot_z_min = '0.0'
-        self.rot_x_max = '0.0'
-        self.rot_y_max = '0.0'
-        self.rot_z_max = '0.0'
